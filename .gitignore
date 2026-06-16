@@ -1,0 +1,86 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Resume Screening System — .gitignore
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual Environments ──────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+backend/venv/
+backend/.venv/
+
+# ── Environment / Secrets — NEVER COMMIT ──────────────────────────────────────
+.env
+backend/.env
+# Keep the example file (safe to commit)
+!backend/.env.example
+
+# ── Uploaded PDFs (user data, not code) ──────────────────────────────────────
+backend/uploads/
+uploads/
+
+# ── Test / Scratch PDF files ──────────────────────────────────────────────────
+test/
+*.pdf
+
+# ── HuggingFace Model Cache (large binary files ~2.4 GB) ─────────────────────
+.cache/
+huggingface/
+~/.cache/huggingface/
+
+# ── Node.js / Frontend ───────────────────────────────────────────────────────
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn
+
+# ── Vite Build Output ─────────────────────────────────────────────────────────
+frontend/dist/
+frontend/.vite/
+dist/
+
+# ── OS Files ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# ── IDE / Editor ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Database ──────────────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Coverage / Test Artifacts ────────────────────────────────────────────────
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

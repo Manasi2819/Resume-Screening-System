@@ -30,7 +30,7 @@ export default function Sidebar({ screen, onNavigate }) {
                 className={`w-full flex items-center gap-md px-md py-sm rounded-DEFAULT transition-colors duration-150 text-left ${
                   isActive
                     ? 'bg-surface-container-low text-primary font-semibold border-r-2 border-primary'
-                    : 'text-on-surface-variant hover:bg-surface-container-low'
+                    : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
                 }`}
               >
                 <span className={`material-symbols-outlined ${isActive ? 'filled' : ''}`}>

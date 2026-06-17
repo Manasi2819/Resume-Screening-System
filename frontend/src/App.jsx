@@ -120,8 +120,32 @@ export default function App() {
     }
   }
 
-  const handleNavigate = (dest) => {
-    if (dest === 'results' && !results) return // no results yet
+  const handleNavigate = async (dest) => {
+    if (dest === 'results' && !results) {
+      // Auto-load the most recent job from history
+      setLoading(true)
+      setError(null)
+      try {
+        const jobs = await listJobs()
+        if (!jobs || jobs.length === 0) {
+          setError('No past screenings found. Run a screening first!')
+          setLoading(false)
+          return
+        }
+        // listJobs returns newest first; pick index 0
+        const latestJob = jobs[0]
+        const data = await getResults(latestJob.job_id ?? latestJob.id ?? latestJob)
+        setResults(data.results)
+        setResultJdText(data.jd_text || '')
+        setScreen('results')
+      } catch (e) {
+        const msg = e.response?.data?.detail || e.message || 'Could not load latest results.'
+        setError(msg)
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
     setScreen(dest)
     if (dest === 'screen') handleNewScreening()
     if (dest === 'history') fetchHistory()

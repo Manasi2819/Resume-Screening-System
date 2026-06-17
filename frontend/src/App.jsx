@@ -187,8 +187,9 @@ export default function App() {
 
             {/* ── Screen 1: Upload + JD ──────────────────────────────────── */}
             {screen === 'screen' && (
-              <div className="flex flex-col gap-xl">
-                <div>
+              <div className="flex flex-col" style={{ height: 'calc(100vh - var(--topbar-h, 64px) - 2 * var(--spacing-xl, 32px))' }}>
+                {/* Header */}
+                <div className="shrink-0 mb-md">
                   <h2 className="text-headline-md font-bold text-on-surface">New Screening</h2>
                   <p className="text-body-lg text-on-surface-variant mt-xs">
                     Upload candidate resumes and provide the job description to run AI analysis.
@@ -197,7 +198,7 @@ export default function App() {
 
                 {/* Error banner */}
                 {error && (
-                  <div className="flex items-center gap-sm bg-error-container border border-error/20 text-on-error-container rounded-lg px-md py-sm text-body-sm">
+                  <div className="shrink-0 flex items-center gap-sm bg-error-container border border-error/20 text-on-error-container rounded-lg px-md py-sm text-body-sm mb-md">
                     <span className="material-symbols-outlined text-[18px]">error</span>
                     {error}
                     <button onClick={() => setError(null)} className="ml-auto hover:opacity-70">
@@ -206,12 +207,12 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Two-column upload grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-xl" style={{ minHeight: 480 }}>
-                  <div className="lg:col-span-7">
+                {/* Two-column upload grid — fills all remaining space */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-xl flex-1 min-h-0">
+                  <div className="lg:col-span-7 min-h-0 flex flex-col">
                     <UploadPanel files={resumeFiles} setFiles={setResumeFiles} />
                   </div>
-                  <div className="lg:col-span-5">
+                  <div className="lg:col-span-5 min-h-0 flex flex-col">
                     <JDPanel
                       jdText={jdText}
                       setJdText={setJdText}
@@ -221,32 +222,33 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Loading state */}
-                {loading && <LoadingSpinner />}
-
-                {/* Run button */}
-                {!loading && (
-                  <div className="flex flex-col items-center gap-sm">
-                    <button
-                      onClick={handleScreen}
-                      disabled={resumeFiles.length === 0 || !hasJD}
-                      className={`flex items-center gap-sm px-xl py-md rounded-lg text-headline-sm font-semibold shadow-sm transition-all duration-200 ${
-                        resumeFiles.length > 0 && hasJD
-                          ? 'bg-primary text-on-primary hover:bg-primary-container hover:shadow-md active:scale-[0.98]'
-                          : 'bg-surface-container text-on-surface-variant cursor-not-allowed'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined">auto_awesome</span>
-                      Run AI Screening
-                    </button>
-                    <p className="text-mono-sm text-on-surface-variant">
-                      {resumeFiles.length > 0
-                        ? `${resumeFiles.length} resume${resumeFiles.length > 1 ? 's' : ''} ready`
-                        : 'Upload resumes to begin'}
-                      {resumeFiles.length > 0 && hasJD && ' · JD provided · Ready to screen'}
-                    </p>
-                  </div>
-                )}
+                {/* Sticky bottom action bar — always visible */}
+                <div className="shrink-0 border-t border-outline-variant mt-md pt-md">
+                  {loading ? (
+                    <LoadingSpinner />
+                  ) : (
+                    <div className="flex items-center justify-between gap-md">
+                      <p className="text-mono-sm text-on-surface-variant">
+                        {resumeFiles.length > 0
+                          ? `${resumeFiles.length} resume${resumeFiles.length > 1 ? 's' : ''} ready`
+                          : 'Upload resumes to begin'}
+                        {resumeFiles.length > 0 && hasJD && ' · JD provided · Ready to screen'}
+                      </p>
+                      <button
+                        onClick={handleScreen}
+                        disabled={resumeFiles.length === 0 || !hasJD}
+                        className={`flex items-center gap-sm px-xl py-md rounded-lg text-headline-sm font-semibold shadow-sm transition-all duration-200 ${
+                          resumeFiles.length > 0 && hasJD
+                            ? 'bg-primary text-on-primary hover:bg-primary-container hover:shadow-md active:scale-[0.98]'
+                            : 'bg-surface-container text-on-surface-variant cursor-not-allowed'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined">auto_awesome</span>
+                        Run AI Screening
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

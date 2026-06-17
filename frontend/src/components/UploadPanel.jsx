@@ -18,40 +18,76 @@ export default function UploadPanel({ files, setFiles }) {
 
   const removeFile = (name) => setFiles((prev) => prev.filter((f) => f.name !== name))
 
-  return (
-    <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-lg flex flex-col gap-md h-full">
-      <h3 className="text-headline-sm text-on-surface flex items-center gap-sm">
-        <span className="material-symbols-outlined text-primary">description</span>
-        Candidate Resumes
-        <span className="text-body-sm text-on-surface-variant font-normal">(PDF only, max 20)</span>
-      </h3>
+  const hasFiles = files.length > 0
 
-      {/* Drop zone */}
-      <div
-        {...getRootProps()}
-        className={`border-2 border-dashed rounded-lg p-xl flex flex-col items-center justify-center text-center cursor-pointer h-44 shrink-0 transition-colors duration-200 ${
-          isDragActive
-            ? 'border-primary bg-surface-container'
-            : 'border-outline-variant hover:border-outline hover:bg-surface-container-low'
-        }`}
-      >
-        <input {...getInputProps()} />
-        <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-sm transition-transform duration-200 ${isDragActive ? 'scale-110 bg-surface-container' : 'bg-surface-container'}`}>
-          <span className="material-symbols-outlined text-primary" style={{ fontSize: 28 }}>upload_file</span>
-        </div>
-        <p className="text-headline-sm text-on-surface">
-          {isDragActive ? 'Drop PDFs here' : 'Drag & drop PDF files here'}
-        </p>
-        <p className="text-body-sm text-on-surface-variant mt-xs">or click to browse from your computer</p>
+  return (
+    <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-lg flex flex-col gap-md h-full min-h-0">
+
+      {/* Header row: title + compact add-more button when files exist */}
+      <div className="flex items-center justify-between shrink-0">
+        <h3 className="text-headline-sm text-on-surface flex items-center gap-sm">
+          <span className="material-symbols-outlined text-primary">description</span>
+          Candidate Resumes
+          <span className="text-body-sm text-on-surface-variant font-normal">(PDF only, max 20)</span>
+        </h3>
+        {hasFiles && (
+          <span className="inline-flex items-center gap-xs px-sm py-xs bg-secondary-container text-on-secondary-container rounded-full text-mono-sm shrink-0">
+            <span className="material-symbols-outlined text-[14px]">description</span>
+            {files.length} / 20
+          </span>
+        )}
       </div>
 
-      {/* File list */}
-      {files.length > 0 && (
-        <div className="flex flex-col gap-sm overflow-y-auto custom-scroll flex-grow pr-xs">
-          {files.map((file, i) => (
+      {/* Drop zone — large when empty, compact strip when files exist */}
+      {!hasFiles ? (
+        /* ── Empty state: big drop zone ── */
+        <div
+          {...getRootProps()}
+          className={`border-2 border-dashed rounded-lg p-xl flex flex-col items-center justify-center text-center cursor-pointer flex-1 transition-colors duration-200 ${
+            isDragActive
+              ? 'border-primary bg-surface-container'
+              : 'border-outline-variant hover:border-outline hover:bg-surface-container-low'
+          }`}
+        >
+          <input {...getInputProps()} />
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-sm transition-transform duration-200 ${isDragActive ? 'scale-110 bg-surface-container' : 'bg-surface-container'}`}>
+            <span className="material-symbols-outlined text-primary" style={{ fontSize: 28 }}>upload_file</span>
+          </div>
+          <p className="text-headline-sm text-on-surface">
+            {isDragActive ? 'Drop PDFs here' : 'Drag & drop PDF files here'}
+          </p>
+          <p className="text-body-sm text-on-surface-variant mt-xs">or click to browse from your computer</p>
+        </div>
+      ) : (
+        /* ── Has files: compact strip ── */
+        <div
+          {...getRootProps()}
+          className={`border-2 border-dashed rounded-lg px-md py-sm flex items-center gap-sm cursor-pointer shrink-0 transition-colors duration-200 ${
+            isDragActive
+              ? 'border-primary bg-surface-container'
+              : 'border-outline-variant hover:border-primary hover:bg-surface-container-low'
+          }`}
+        >
+          <input {...getInputProps()} />
+          <span className="material-symbols-outlined text-primary text-[20px]">add_circle</span>
+          <div className="min-w-0">
+            <p className="text-body-sm font-semibold text-on-surface">
+              {isDragActive ? 'Drop to add more…' : 'Add more resumes'}
+            </p>
+            <p className="text-mono-sm text-on-surface-variant">
+              {20 - files.length} slot{20 - files.length !== 1 ? 's' : ''} remaining · drag & drop or click
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* File list — scrolls within the panel */}
+      {hasFiles && (
+        <div className="flex flex-col gap-sm overflow-y-auto custom-scroll flex-1 min-h-0 pr-xs">
+          {files.map((file) => (
             <div
               key={file.name}
-              className="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-sm flex items-center justify-between gap-sm"
+              className="bg-surface-container border border-outline-variant rounded-DEFAULT p-sm flex items-center justify-between gap-sm shrink-0"
             >
               <div className="flex items-center gap-sm min-w-0">
                 <span className="material-symbols-outlined text-secondary text-[20px] shrink-0">
@@ -65,7 +101,7 @@ export default function UploadPanel({ files, setFiles }) {
                 </div>
               </div>
               <button
-                onClick={() => removeFile(file.name)}
+                onClick={(e) => { e.stopPropagation(); removeFile(file.name) }}
                 className="text-on-surface-variant hover:text-error transition-colors shrink-0"
                 title="Remove"
               >
@@ -76,20 +112,11 @@ export default function UploadPanel({ files, setFiles }) {
         </div>
       )}
 
-      {files.length === 0 && (
-        <p className="text-body-sm text-on-surface-variant text-center py-sm">
+      {/* Empty hint */}
+      {!hasFiles && (
+        <p className="text-body-sm text-on-surface-variant text-center py-sm shrink-0">
           No resumes added yet
         </p>
-      )}
-
-      {/* Count badge */}
-      {files.length > 0 && (
-        <div className="text-center">
-          <span className="inline-flex items-center gap-xs px-sm py-xs bg-secondary-container text-on-secondary-container rounded-full text-mono-sm">
-            <span className="material-symbols-outlined text-[14px]">description</span>
-            {files.length} / 20 resumes ready
-          </span>
-        </div>
       )}
     </div>
   )

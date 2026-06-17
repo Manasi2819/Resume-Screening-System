@@ -12,7 +12,7 @@ AI-Powered Resume Screening System
 
 Automated Candidate Ranking Using Retrieval-Augmented Generation (RAG)
 
-Tech Stack: FastAPI · BGE Embeddings · Qdrant · LangChain · Groq (LLaMA-3.3-70B) · React
+Tech Stack: FastAPI · BGE Embeddings · Qdrant · LangChain · Groq (LLaMA-3.3-70B) · React · Docker
 ```
 
 ### Speaker Notes
@@ -68,21 +68,23 @@ The Solution: RAG-Based Resume Screening
 ```
 Architecture Overview
 
-[Browser] → HTTP multipart upload
+[Browser]
      ↓
-[FastAPI Backend]
+[Nginx (frontend container)] ←─ React built files served statically
+     ↓ proxies /api →
+[FastAPI Backend (backend container)]
      ↓
 [Pipeline Orchestrator]
   ├─ PDF Parser (pdfplumber + spaCy)      → section-aware chunks
   ├─ BGE Embedder (HuggingFace)           → 768-dim vectors
-  ├─ Qdrant Vector Store (in-memory)      → ANN search, top-30 chunks
+  ├─ Qdrant Vector Store (container)      → ANN search, top-30 chunks
   ├─ BGE Cross-Encoder Reranker           → precise (JD, chunk) scoring
   ├─ Weighted Scorer                      → final_score per candidate
   └─ Groq LLM (LLaMA-3.3-70B)           → fit/gap explanation
      ↓
-[PostgreSQL] → persistent results
-     ↓
-[React UI] → ranked candidates with evidence
+[PostgreSQL (container)] → persistent results
+
+All 4 services managed by Docker Compose — one command to start everything
 ```
 
 ### Speaker Notes
@@ -176,7 +178,7 @@ BGE Embeddings    → Free, offline, top BEIR benchmark performance
                     outperforms text-embedding-ada-002 on retrieval tasks
 
 Qdrant            → Native cosine similarity, metadata filtering by job_id,
-                    in-memory mode = zero install for local dev
+                    Docker container in production, in-memory for local dev
 
 Groq (LLaMA-3.3-70B) → Free tier (14,400 req/day), ~150 tokens/sec,
                          quality comparable to GPT-4o for structured JSON output
@@ -185,9 +187,13 @@ FastAPI           → Async, auto-generated OpenAPI docs at /docs,
                     Pydantic validation built-in
 
 PostgreSQL        → ACID compliance, UUID support, JSON columns for metadata
-                    survives Qdrant in-memory resets
+                    survives Qdrant resets
+
+Docker Compose    → One command starts all 4 services (frontend, backend,
+                    postgres, qdrant) with health checks and startup ordering
 
 React + Vite      → Fast HMR dev experience, Tailwind for rapid UI iteration
+                    served in production by Nginx in Docker
 ```
 
 ### Speaker Notes
@@ -200,7 +206,7 @@ React + Vite      → Fast HMR dev experience, Tailwind for rapid UI iteration
 ### Demo Script (5–7 minutes)
 
 #### Step 1 — Open the Application
-- Navigate to `http://localhost:5173`
+- Navigate to `http://localhost:3000` *(Docker)* or `http://localhost:5173` *(local dev)*
 - Show the three-panel layout: Upload (left), JD (right), Sidebar (left rail)
 
 #### Step 2 — Upload Resumes
@@ -319,11 +325,12 @@ Product:
 
 ### Content
 ```
-Phase 2 — Production Hardening
-  □ Docker Compose: FastAPI + PostgreSQL + Qdrant server
-  □ Persistent Qdrant (vectors survive restarts)
-  □ S3 file storage for uploaded PDFs
-  □ API key authentication
+Phase 2 — Production Hardening ✅ Complete
+  ☑ Docker Compose: FastAPI + PostgreSQL + Qdrant + Nginx (all 4 containers)
+  ☑ Persistent Qdrant server (vectors survive restarts)
+  ☑ Named Docker volumes (DB, uploads, model cache persist)
+  ☑ Multi-stage Dockerfiles for minimal image size
+  ☑ Health checks + proper container startup ordering
 
 Phase 3 — Feature Expansion
   □ OCR for image-based PDFs
@@ -333,8 +340,8 @@ Phase 3 — Feature Expansion
 
 Phase 4 — Scale
   □ GPU cross-encoder inference (10× speedup)
-  □ Multi-tenant with organization accounts
   □ Cloud deployment (Railway / AWS ECS)
+  □ Multi-tenant with organization accounts
 ```
 
 ---

@@ -1,8 +1,8 @@
 # Technical Report — AI-Powered Resume Screening System
 
-**Version:** 1.0.0  
-**Date:** June 2026  
-**Stack:** FastAPI · BGE Embeddings · Qdrant · LangChain · Groq (LLaMA-3.3-70B) · React · Vite · PostgreSQL
+**Version:** 1.1.0  
+**Date:** 17 th June 2026  
+**Stack:** FastAPI · BGE Embeddings · Qdrant · LangChain · Groq (LLaMA-3.3-70B) · React · Vite · PostgreSQL · Docker
 
 ---
 
@@ -21,33 +21,32 @@ This system automates the candidate shortlisting phase of technical hiring using
 ## 2. System Architecture
 
 ```
-┌───────────────────────────────────────────────────────────────────────────┐
-│                           Browser (React + Vite)                           │
-│  Upload Panel · JD Panel · Ranked Results · Candidate Detail · History     │
-└────────────────────────────┬──────────────────────────────────────────────┘
-                             │  HTTP (multipart/form-data)
-                             ▼
-┌───────────────────────────────────────────────────────────────────────────┐
-│                        FastAPI Backend (Python 3.11+)                      │
-│                                                                             │
-│  ┌──────────────┐     ┌───────────────────────────────────────────────┐   │
-│  │  API Layer   │────▶│               Pipeline Orchestrator            │   │
-│  │  routes.py   │     │               (pipeline.py)                   │   │
-│  └──────────────┘     └──┬────────┬────────┬────────┬─────────┬──────┘   │
-│                          │        │        │        │         │            │
-│                    ┌─────▼──┐ ┌───▼───┐ ┌─▼──────┐ ┌───▼──┐ ┌────▼───┐  │
-│                    │parser  │ │embed  │ │retriev │ │rerank│ │explain │  │
-│                    │.py     │ │der.py │ │er.py   │ │er.py │ │er.py   │  │
-│                    └────────┘ └───────┘ └────────┘ └──────┘ └────────┘  │
-│                         │         │          │         │          │        │
-│                    pdfplumber  BGE-base   Qdrant    BGE cross  LangChain  │
-│                    + spaCy   (HuggingFace) (in-mem)  encoder   + Groq     │
-└───────────────────────────────────────────────────────────────────────────┘
-                             │
-              ┌──────────────┴──────────────┐
-              │         PostgreSQL           │
-              │  jobs · candidates · screen  │
-              └─────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│              Docker Compose (docker-compose.yml)                         │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │ frontend container (Nginx + React build)  :3000                    │ │
+│  │  Browser → Nginx → proxies /api, /uploads to backend               │ │
+│  └───────────────────────────┬────────────────────────────────────────┘ │
+│                              │ HTTP                                      │
+│  ┌───────────────────────────▼────────────────────────────────────────┐ │
+│  │ backend container (FastAPI + Uvicorn)  :8000                       │ │
+│  │                                                                    │ │
+│  │  ┌──────────┐   ┌──────────────────────────────────────────────┐  │ │
+│  │  │ API Layer│──▶│          Pipeline Orchestrator                │  │ │
+│  │  │routes.py │   │  parser → embedder → retriever → reranker    │  │ │
+│  │  └──────────┘   │         → scorer  → explainer                │  │ │
+│  │                 └──────────────────────────────────────────────┘  │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                              │                                           │
+│          ┌───────────────────┴───────────────────┐                      │
+│          │                                       │                      │
+│  ┌───────▼──────┐                      ┌────────▼──────┐               │
+│  │  postgres    │                      │    qdrant     │               │
+│  │  container   │                      │   container   │               │
+│  │  :5432       │                      │   :6333       │               │
+│  └──────────────┘                      └───────────────┘               │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -83,7 +82,8 @@ LangChain's `PyPDFLoader` and `UnstructuredPDFLoader` split text every N charact
 - `bge-large` outperforms `text-embedding-ada-002` on most retrieval benchmarks
 
 **Storage:** LangChain `QdrantVectorStore` wrapping `qdrant_client`
-- In-memory mode for local dev (no installation, resets on restart)
+- **Local dev:** In-memory mode (`QDRANT_USE_MEMORY=true`) — no installation, resets on restart
+- **Docker / production:** Persistent Qdrant server container (`QDRANT_USE_MEMORY=false`) — vectors survive restarts
 - Each chunk stored with metadata: `resume_id`, `job_id`, `candidate_name`, `section`
 - Filtered search by `job_id` so results from different screenings don't mix
 
@@ -199,6 +199,8 @@ Three PostgreSQL tables:
 | Build Tool | Vite | 5.2.13 |
 | Styling | Tailwind CSS | 3.4.4 |
 | HTTP Client | Axios | 1.7.2 |
+| Web Server | Nginx | 1.27 (Alpine) |
+| Containerization | Docker Compose | v2 |
 
 ---
 
@@ -293,20 +295,24 @@ PDF bytes (upload)
 
 | Item | Current State | Production Recommendation |
 |---|---|---|
-| `.env` secrets | `.gitignore` protects from commit | Use environment variables or secrets manager (Vault, AWS SSM) |
-| Uploaded files | Stored locally with UUID prefix | Move to S3/GCS with signed URLs |
-| CORS origins | Whitelisted to `localhost:5173` | Update to production domain |
+| `.env` secrets | `.gitignore` + `.dockerignore` protect from commit | Use environment variables or secrets manager (Vault, AWS SSM) |
+| Uploaded files | Stored in Docker volume with UUID prefix | Move to S3/GCS with signed URLs |
+| CORS origins | Whitelisted to `localhost:5173`, `localhost:3000` | Update to production domain |
 | SQL injection | SQLAlchemy ORM parameterizes all queries | ✅ Safe |
 | File type validation | `.pdf` extension check + pdfplumber error handling | Add MIME type validation for stricter enforcement |
 | API authentication | None (local dev) | Add API key header or OAuth2 |
+| Docker image secrets | Secrets passed via env vars, not baked into image | ✅ Correct — `.env` excluded via `.dockerignore` |
 
 ---
 
-## 9. Future Roadmap
+## 9. Roadmap
 
-### Phase 2 — Production Hardening
-- [ ] Switch Qdrant from in-memory → persistent server (`QDRANT_USE_MEMORY=false`)
-- [ ] Add Docker Compose to orchestrate FastAPI + PostgreSQL + Qdrant
+### Phase 2 — Production Hardening ✅ Complete
+- [x] Docker Compose orchestrating FastAPI + PostgreSQL + Qdrant + Nginx
+- [x] Persistent Qdrant server container (`QDRANT_USE_MEMORY=false` in Docker)
+- [x] Named Docker volumes for data persistence (DB, vectors, uploads, model cache)
+- [x] Multi-stage Dockerfiles (builder + runtime) for minimal image size
+- [x] Health checks + startup ordering (postgres → qdrant → backend → frontend)
 - [ ] Move uploaded PDFs to S3-compatible storage (MinIO or AWS S3)
 - [ ] Add API key authentication middleware
 - [ ] Add Alembic migrations for DB schema versioning
@@ -320,6 +326,6 @@ PDF bytes (upload)
 
 ### Phase 4 — Scale
 - [ ] GPU inference for cross-encoder (10× speedup)
+- [ ] Cloud deployment (Railway / Render / AWS ECS)
 - [ ] Persistent Qdrant with collection-per-client isolation
 - [ ] Multi-tenant support with organization accounts
-- [ ] Cloud deployment (Railway / Render / AWS ECS)

@@ -1,0 +1,48 @@
+# Python virtual environment (if using venv locally)
+venv/
+.venv/
+env/
+
+# Python cache files (auto-generated, not needed in image)
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+
+# Environment files (NEVER bake secrets into Docker images!)
+.env
+.env.*
+!.env.example
+
+# Uploaded files (these are runtime data, not source code)
+uploads/
+
+# Local development tools
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Test files
+tests/
+test_*.py
+
+# Documentation (not needed in container)
+*.md

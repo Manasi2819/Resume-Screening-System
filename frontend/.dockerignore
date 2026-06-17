@@ -1,0 +1,33 @@
+# Node dependencies (huge folder, never copy into Docker image)
+node_modules/
+
+# Build output (Docker will generate this inside the container)
+dist/
+build/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+
+# Test files
+*.test.js
+*.spec.js
+coverage/

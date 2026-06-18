@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     # ── Local File Storage ──────────────────────────────────────────────────
     UPLOAD_DIR: str = "uploads"
 
+    # ── Tesseract OCR (for image resumes / JD uploads) ────────────────────
+    # Linux/Docker: leave empty — tesseract binary is on PATH automatically
+    # Windows local dev: set to full path of tesseract.exe
+    #   e.g.  C:\Program Files\Tesseract-OCR\tesseract.exe
+    TESSERACT_CMD: str = ""
+
     class Config:
         env_file = ".env"
 

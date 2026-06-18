@@ -15,7 +15,7 @@ export async function screenResumes(jdText, jdPdf, resumeFiles) {
   const formData = new FormData()
   formData.append('jd_text', jdText || '')
   if (jdPdf) {
-    formData.append('jd_pdf', jdPdf)
+    formData.append('jd_file', jdPdf)
   }
   resumeFiles.forEach((file) => formData.append('resumes', file))
 

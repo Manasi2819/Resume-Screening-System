@@ -66,24 +66,36 @@ def compute_scores(
 def _compute_rule_score(metadata: dict, jd_text: str) -> float:
     """
     Rule-based bonus (0.0 – 1.0) based on hard heuristics.
-    60% weight for skill overlap, 40% for years of experience.
+
+    Internal split (within the 15% Rule Bonus component of the final score):
+      - Skill keyword overlap with JD  → up to 0.3  (30%)
+      - Years of experience match      → up to 0.7  (70%)
+
+    Experience gate: candidates with < 1 year of experience receive 0.0
+    for the experience component regardless of the JD requirement.
     """
     jd_lower = jd_text.lower()
 
-    # ── Skill overlap bonus (up to 0.6) ──────────────────────────────────
+    # ── Skill keyword overlap (up to 0.3) ────────────────────────────────
     candidate_skills = {s.lower() for s in metadata.get("skills", [])}
     jd_hits = sum(1 for skill in candidate_skills if skill in jd_lower)
-    skill_bonus = min(jd_hits / 5.0, 1.0) * 0.6
+    skill_bonus = min(jd_hits / 5.0, 1.0) * 0.3
 
-    # ── Years of experience bonus (up to 0.4) ────────────────────────────
+    # ── Years of experience (up to 0.7, gated at ≥ 1 year) ──────────────
     jd_exp = re.search(r"(\d+)\+?\s*years?", jd_lower)
     required_years = int(jd_exp.group(1)) if jd_exp else 0
     candidate_years = metadata.get("years_experience", 0)
-    if required_years == 0:
-        exp_bonus = 0.4
+
+    if candidate_years < 1:
+        # Hard gate: less than 1 year of experience earns no experience score
+        exp_bonus = 0.0
+    elif required_years == 0:
+        # JD doesn't specify years — full experience bonus for any qualified candidate
+        exp_bonus = 0.7
     elif candidate_years >= required_years:
-        exp_bonus = 0.4
+        exp_bonus = 0.7
     else:
-        exp_bonus = (candidate_years / required_years) * 0.4
+        exp_bonus = (candidate_years / required_years) * 0.7
 
     return min(skill_bonus + exp_bonus, 1.0)
+

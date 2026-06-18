@@ -10,11 +10,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Install system dependencies needed to compile some Python packages
-# (psycopg2 needs libpq, pdfminer needs libgomp for torch)
+# (psycopg2 needs libpq, pdfminer needs libgomp for torch, tesseract for OCR)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     curl \
+    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory inside the container
@@ -40,6 +41,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
+    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

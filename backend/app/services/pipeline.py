@@ -37,11 +37,11 @@ def run_pipeline(
     candidate_metadata_map: dict[str, dict] = {}
 
     for rf in resume_files:
-        # Save PDF
-        file_path = storage.save_pdf(rf["bytes"], rf["filename"])
+        # Save file to disk (any supported format)
+        file_path = storage.save_file(rf["bytes"], rf["filename"])
 
-        # Parse: extract text, sections, metadata
-        parsed = parser.parse_resume(rf["bytes"])
+        # Parse: extract text, sections, metadata (format detected by filename)
+        parsed = parser.parse_resume(rf["bytes"], rf["filename"])
 
         # Save candidate to DB
         candidate = Candidate(

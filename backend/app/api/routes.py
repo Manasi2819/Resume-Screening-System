@@ -1,5 +1,6 @@
 import os
 import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -7,52 +8,98 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.orm import Job, Candidate, Screening
 from app.services.pipeline import run_pipeline
-from app.services.parser import extract_text_from_pdf
+from app.services.parser import extract_text, RESUME_ALLOWED_EXTS, JD_ALLOWED_EXTS
 
 router = APIRouter()
+
+# ── Allowed extensions (defined in parser.py, imported here for HTTP validation)
+_RESUME_EXT_DISPLAY = "PDF, DOCX, PNG, JPG, JPEG, WEBP"
+_JD_EXT_DISPLAY     = "PDF, DOCX, TXT, PNG, JPG, JPEG, WEBP"
 
 
 @router.post("/screen")
 async def screen_resumes(
     jd_text: str = Form(default=""),
-    jd_pdf: UploadFile = File(default=None),          # NEW: optional JD PDF
+    jd_file: UploadFile = File(default=None),   # JD as any supported file type
     resumes: list[UploadFile] = File(...),
     db: Session = Depends(get_db),
 ):
     """
     Main screening endpoint.
     Accepts multipart/form-data:
-      - jd_text: pasted JD text (optional if jd_pdf provided)
-      - jd_pdf:  JD as PDF file (optional if jd_text provided)
-      - resumes: list of candidate PDF files (1–20)
+      - jd_text : pasted JD text (optional if jd_file provided)
+      - jd_file : JD as PDF / DOCX / TXT / image (optional if jd_text provided)
+      - resumes : list of candidate files — PDF / DOCX / image (1–20 files)
     """
-    # ── Resolve JD text ──────────────────────────────────────────────────────
+    # ── Resolve JD text ───────────────────────────────────────────────────────
     final_jd_text = jd_text.strip()
 
-    if not final_jd_text and jd_pdf is not None:
-        # Extract text from the uploaded JD PDF
-        pdf_bytes = await jd_pdf.read()
+    if not final_jd_text and jd_file is not None:
+        jd_ext = Path(jd_file.filename or "").suffix.lower()
+
+        # Reject .doc early with a clear message
+        if jd_ext == ".doc":
+            raise HTTPException(
+                400,
+                f"'{jd_file.filename}' — .doc files are not supported for Job Descriptions. "
+                "Please open the file in Word, save it as .docx, and re-upload."
+            )
+
+        if jd_ext not in JD_ALLOWED_EXTS:
+            raise HTTPException(
+                400,
+                f"'{jd_file.filename}' is not a supported format for the Job Description. "
+                f"Accepted: {_JD_EXT_DISPLAY}."
+            )
+
+        jd_bytes = await jd_file.read()
         try:
-            final_jd_text = extract_text_from_pdf(pdf_bytes)
+            final_jd_text = extract_text(jd_bytes, jd_file.filename)
+        except ValueError as e:
+            raise HTTPException(400, f"Could not read JD file: {e}")
         except Exception as e:
-            raise HTTPException(400, f"Could not read JD PDF: {e}")
+            raise HTTPException(400, f"Unexpected error reading JD file: {e}")
 
     if not final_jd_text or len(final_jd_text) < 50:
         raise HTTPException(
             400,
-            "Job description is too short. Paste text or upload a JD PDF (min 50 chars)."
+            "Job description is too short. Paste text or upload a JD file (min 50 chars)."
         )
 
     # ── Validate resumes ──────────────────────────────────────────────────────
     if not resumes:
-        raise HTTPException(400, "Upload at least one resume PDF.")
+        raise HTTPException(400, "Upload at least one resume file.")
     if len(resumes) > 20:
-        raise HTTPException(400, "Maximum 20 resumes per submission.")
+        raise HTTPException(400, "Maximum 20 resume files per submission.")
 
     resume_files = []
     for upload in resumes:
-        if not (upload.filename or "").lower().endswith(".pdf"):
-            raise HTTPException(400, f"'{upload.filename}' is not a PDF file.")
+        ext = Path(upload.filename or "").suffix.lower()
+
+        # Reject .doc with a specific, actionable message
+        if ext == ".doc":
+            raise HTTPException(
+                400,
+                f"'{upload.filename}' — .doc files are not supported for resumes. "
+                "Please open the file in Word, choose 'Save As', select .docx format, "
+                "and re-upload."
+            )
+
+        # Reject .txt for resumes (only allowed for JD)
+        if ext == ".txt":
+            raise HTTPException(
+                400,
+                f"'{upload.filename}' — .txt files are not accepted for resumes. "
+                f"Accepted resume formats: {_RESUME_EXT_DISPLAY}."
+            )
+
+        if ext not in RESUME_ALLOWED_EXTS:
+            raise HTTPException(
+                400,
+                f"'{upload.filename}' is not a supported format for resumes. "
+                f"Accepted: {_RESUME_EXT_DISPLAY}."
+            )
+
         file_bytes = await upload.read()
         resume_files.append({"filename": upload.filename, "bytes": file_bytes})
 
@@ -74,7 +121,7 @@ async def screen_resumes(
         return {"job_id": str(job.id), "status": "done", "jd_text": final_jd_text, "results": results}
 
     except Exception as e:
-        db.rollback()          # Clear the failed transaction before touching the session
+        db.rollback()
         job.status = "failed"
         db.commit()
         raise HTTPException(500, f"Screening pipeline failed: {str(e)}")
@@ -138,7 +185,7 @@ def get_results(job_id: str, db: Session = Depends(get_db)):
 
 @router.get("/candidates/{candidate_id}")
 def get_candidate(candidate_id: str, db: Session = Depends(get_db)):
-    """Retrieve detailed candidate information including raw text and PDF file URL."""
+    """Retrieve detailed candidate information including raw text and file URL."""
     candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
     if not candidate:
         raise HTTPException(404, "Candidate not found.")
@@ -152,6 +199,8 @@ def get_candidate(candidate_id: str, db: Session = Depends(get_db)):
         "email": candidate.email,
         "raw_text": candidate.raw_text,
         "metadata_json": candidate.metadata_json,
+        "file_url": f"/uploads/{filename}" if filename else None,
+        # Keep old key for backward compatibility
         "pdf_url": f"/uploads/{filename}" if filename else None,
     }
 

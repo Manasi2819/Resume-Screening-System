@@ -1,6 +1,15 @@
 import { useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 
+/** Returns a Material Symbol icon name based on file extension */
+function fileIcon(filename = '') {
+  const ext = filename.split('.').pop()?.toLowerCase()
+  if (ext === 'pdf') return 'picture_as_pdf'
+  if (ext === 'docx' || ext === 'doc') return 'description'
+  if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) return 'image'
+  return 'insert_drive_file'
+}
+
 export default function UploadPanel({ files, setFiles }) {
   const onDrop = useCallback((accepted) => {
     setFiles((prev) => {
@@ -12,7 +21,13 @@ export default function UploadPanel({ files, setFiles }) {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { 'application/pdf': ['.pdf'] },
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'image/png':  ['.png'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/webp': ['.webp'],
+    },
     maxFiles: 20,
   })
 
@@ -23,12 +38,14 @@ export default function UploadPanel({ files, setFiles }) {
   return (
     <div className="bg-surface-container-lowest border border-outline-variant rounded-lg p-lg flex flex-col gap-md h-full min-h-0">
 
-      {/* Header row: title + compact add-more button when files exist */}
+      {/* Header row */}
       <div className="flex items-center justify-between shrink-0">
         <h3 className="text-headline-sm text-on-surface flex items-center gap-sm">
           <span className="material-symbols-outlined text-primary">description</span>
           Candidate Resumes
-          <span className="text-body-sm text-on-surface-variant font-normal">(PDF only, max 20)</span>
+          <span className="text-body-sm text-on-surface-variant font-normal">
+            (PDF · DOCX · Image, max 20)
+          </span>
         </h3>
         {hasFiles && (
           <span className="inline-flex items-center gap-xs px-sm py-xs bg-secondary-container text-on-secondary-container rounded-full text-mono-sm shrink-0">
@@ -38,7 +55,7 @@ export default function UploadPanel({ files, setFiles }) {
         )}
       </div>
 
-      {/* Drop zone — large when empty, compact strip when files exist */}
+      {/* Drop zone */}
       {!hasFiles ? (
         /* ── Empty state: big drop zone ── */
         <div
@@ -54,9 +71,9 @@ export default function UploadPanel({ files, setFiles }) {
             <span className="material-symbols-outlined text-primary" style={{ fontSize: 28 }}>upload_file</span>
           </div>
           <p className="text-headline-sm text-on-surface">
-            {isDragActive ? 'Drop PDFs here' : 'Drag & drop PDF files here'}
+            {isDragActive ? 'Drop resumes here' : 'Drag & drop resumes here'}
           </p>
-          <p className="text-body-sm text-on-surface-variant mt-xs">or click to browse from your computer</p>
+          <p className="text-body-sm text-on-surface-variant mt-xs">or click to browse · supports PDF, Word (.docx), PNG, JPG, WEBP</p>
         </div>
       ) : (
         /* ── Has files: compact strip ── */
@@ -75,13 +92,13 @@ export default function UploadPanel({ files, setFiles }) {
               {isDragActive ? 'Drop to add more…' : 'Add more resumes'}
             </p>
             <p className="text-mono-sm text-on-surface-variant">
-              {20 - files.length} slot{20 - files.length !== 1 ? 's' : ''} remaining · drag & drop or click
+              {20 - files.length} slot{20 - files.length !== 1 ? 's' : ''} remaining · PDF, DOCX, or Image
             </p>
           </div>
         </div>
       )}
 
-      {/* File list — scrolls within the panel */}
+      {/* File list */}
       {hasFiles && (
         <div className="flex flex-col gap-sm overflow-y-auto custom-scroll flex-1 min-h-0 pr-xs">
           {files.map((file) => (
@@ -91,7 +108,7 @@ export default function UploadPanel({ files, setFiles }) {
             >
               <div className="flex items-center gap-sm min-w-0">
                 <span className="material-symbols-outlined text-secondary text-[20px] shrink-0">
-                  check_circle
+                  {fileIcon(file.name)}
                 </span>
                 <div className="min-w-0">
                   <p className="text-body-sm font-semibold text-on-surface truncate">{file.name}</p>

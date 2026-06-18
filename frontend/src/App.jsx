@@ -53,8 +53,8 @@ export default function App() {
 
   // ── Screen handler ─────────────────────────────────────────────────────────
   const handleScreen = async () => {
-    if (resumeFiles.length === 0) { setError('Please upload at least one resume PDF.'); return }
-    if (!jdText.trim() && !jdPdf)  { setError('Please provide a Job Description (paste text or upload a PDF).'); return }
+    if (resumeFiles.length === 0) { setError('Please upload at least one resume (PDF, Word, or image).'); return }
+    if (!jdText.trim() && !jdPdf)  { setError('Please provide a Job Description (paste text or upload a file — PDF, DOCX, TXT, or image).'); return }
     if (jdText.trim() && jdText.trim().length < 50) { setError('Job description text is too short (minimum 50 characters).'); return }
 
     setError(null)

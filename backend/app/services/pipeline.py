@@ -140,6 +140,15 @@ def run_pipeline(
             "explanation_fit": explanation.get("fit", ""),
             "explanation_gap": explanation.get("gap", ""),
             "evidence_chunks": top_chunks,
+            # ── Extended fields (populated for portal profiles via Vision LLM) ──
+            "candidate_location": meta.get("location"),
+            "current_role":       meta.get("current_role"),
+            "current_company":    meta.get("company"),
+            "salary_lacs":        meta.get("salary_lacs"),
+            "notice_period":      meta.get("notice_period"),
+            "education":          meta.get("education"),
+            "months_experience":  meta.get("months_experience"),
+            "parsed_by":          meta.get("parsed_by"),
         })
 
     db.commit()

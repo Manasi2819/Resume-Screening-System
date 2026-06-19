@@ -23,6 +23,15 @@ class ScreeningResult(BaseModel):
     explanation_fit: str
     explanation_gap: str
     evidence_chunks: list[str]
+    # ── Extended fields (portal profiles + all resumes) ──────────────────
+    candidate_location: Optional[str] = None
+    current_role: Optional[str] = None
+    current_company: Optional[str] = None
+    salary_lacs: Optional[float] = None
+    notice_period: Optional[str] = None
+    education: Optional[str] = None
+    months_experience: Optional[int] = None
+    parsed_by: Optional[str] = None     # "vision_llm" | "ocr" | "pdf" | "docx"
 
 
 class ScreenResponse(BaseModel):

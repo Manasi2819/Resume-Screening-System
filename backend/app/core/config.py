@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
 
+    # ── Vision LLM (image / portal-screenshot parsing) ──────────────────
+    # Set USE_VISION_FOR_IMAGES=false to fall back to OCR-only for all images.
+    # GROQ_VISION_MODEL must be a Groq model that supports image inputs.
+    USE_VISION_FOR_IMAGES: bool = True
+    GROQ_VISION_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+
     # ── HuggingFace Models ──────────────────────────────────────────────────
     # LOCAL DEV  (default): bge-base-en-v1.5  + bge-reranker-base   (~400 MB, EMBED_DIM=768)
     # PRODUCTION (optional): bge-large-en-v1.5 + bge-reranker-large (~2.4 GB, EMBED_DIM=1024)

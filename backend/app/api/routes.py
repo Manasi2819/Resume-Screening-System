@@ -177,6 +177,15 @@ def get_results(job_id: str, db: Session = Depends(get_db)):
                 "explanation_fit": s.explanation_fit,
                 "explanation_gap": s.explanation_gap,
                 "evidence_chunks": s.evidence_chunks or [],
+                # ── Extended fields ──────────────────────────────────────
+                "candidate_location": c.metadata_json.get("location") if c.metadata_json else None,
+                "current_role":       c.metadata_json.get("current_role") if c.metadata_json else None,
+                "current_company":    c.metadata_json.get("company") if c.metadata_json else None,
+                "salary_lacs":        c.metadata_json.get("salary_lacs") if c.metadata_json else None,
+                "notice_period":      c.metadata_json.get("notice_period") if c.metadata_json else None,
+                "education":          c.metadata_json.get("education") if c.metadata_json else None,
+                "months_experience":  c.metadata_json.get("months_experience") if c.metadata_json else None,
+                "parsed_by":          c.metadata_json.get("parsed_by") if c.metadata_json else None,
             }
             for s, c in rows
         ],

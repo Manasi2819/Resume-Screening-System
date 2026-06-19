@@ -14,6 +14,7 @@ After text extraction the pipeline is unchanged:
   chunk_by_sections → extract_metadata → parse_resume
 """
 import io
+import logging
 import os
 import re
 from pathlib import Path
@@ -21,6 +22,8 @@ from typing import Optional
 
 import pdfplumber
 import spacy
+
+logger = logging.getLogger(__name__)
 
 # ── Optional imports — fail gracefully with clear messages ───────────────────
 try:
@@ -38,12 +41,12 @@ except ImportError:
     Image = None  # type: ignore
 
 # ── Configure Tesseract path from .env (Windows local dev) ───────────────────
+_settings = None
 try:
-    from app.core.config import settings
-    if settings.TESSERACT_CMD and _TESSERACT_AVAILABLE:
-        # Only set if the path actually exists (helps prevent Windows dev path from breaking Linux Docker containers)
-        if os.path.exists(settings.TESSERACT_CMD):
-            pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
+    from app.core.config import settings as _settings
+    if _settings.TESSERACT_CMD and _TESSERACT_AVAILABLE:
+        if os.path.exists(_settings.TESSERACT_CMD):
+            pytesseract.pytesseract.tesseract_cmd = _settings.TESSERACT_CMD
 except Exception:
     pass  # settings not available at import time in some test contexts
 
@@ -301,7 +304,7 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
       .pdf                        → pdfplumber
       .docx                       → python-docx
       .doc                        → rejected (user-friendly error)
-      .png / .jpg / .jpeg / .webp → Tesseract OCR
+      .png / .jpg / .jpeg / .webp → Vision LLM with Tesseract OCR fallback
       .txt                        → UTF-8 decode (JD only — routes.py enforces this)
 
     Raises ValueError with a descriptive message on any failure.
@@ -322,6 +325,21 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
         )
 
     if ext in {".png", ".jpg", ".jpeg", ".webp"}:
+        vision_enabled = _settings.USE_VISION_FOR_IMAGES if _settings else False
+        if vision_enabled:
+            try:
+                from app.services import vision_parser
+                jd_text = vision_parser.extract_jd_with_vision(
+                    image_bytes=file_bytes,
+                    groq_api_key=_settings.GROQ_API_KEY,
+                    vision_model=_settings.GROQ_VISION_MODEL,
+                )
+                if jd_text is not None:
+                    return jd_text
+            except Exception as e:
+                logger.warning(
+                    f"[extract_text] JD Vision path raised exception — using OCR fallback. Detail: {e}"
+                )
         return extract_text_from_image(file_bytes)
 
     if ext == ".txt":
@@ -547,14 +565,56 @@ def parse_resume(file_bytes: bytes, filename: str) -> dict:
     Full parse pipeline for a resume file:
       raw bytes + filename → {raw_text, chunks, metadata}
 
-    Supports PDF, DOCX, and image formats.
-    This is the main entry point called by the pipeline.
+    Routing logic:
+      Image files (.png/.jpg/.jpeg/.webp)
+        ├─ USE_VISION_FOR_IMAGES=true → Vision LLM (Groq Llama 4 Scout)
+        │     ├─ Success → rich structured metadata + clean raw_text
+        │     └─ Any failure (rate limit, network, bad JSON, size >4MB)
+        │           → silently falls back to improved OCR path
+        └─ USE_VISION_FOR_IMAGES=false → OCR only
+      PDF / DOCX / TXT → existing parsers (unchanged)
+
+    The `parsed_by` key in metadata records which path was used:
+      "vision_llm" | "ocr" | "pdf" | "docx" | "txt"
     """
+    ext = Path(filename).suffix.lower()
+
+    # ── Vision LLM path for image files ────────────────────────────────
+    if ext in {".png", ".jpg", ".jpeg", ".webp"}:
+        vision_enabled = getattr(_settings, "USE_VISION_FOR_IMAGES", True)
+        if vision_enabled:
+            try:
+                from app.services import vision_parser
+                vision_data = vision_parser.extract_profile_with_vision(
+                    image_bytes=file_bytes,
+                    groq_api_key=_settings.GROQ_API_KEY,
+                    vision_model=_settings.GROQ_VISION_MODEL,
+                )
+                if vision_data is not None:
+                    metadata = vision_parser.vision_data_to_metadata(vision_data)
+                    # Use Vision LLM's reconstructed text; fall back to OCR if empty
+                    raw_text = sanitize_text((vision_data.get("raw_text") or "").strip())
+                    if len(raw_text) < 50:
+                        logger.info("[parse_resume] Vision raw_text too short — supplementing with OCR text")
+                        raw_text = extract_text_from_image(file_bytes)
+                    chunks = chunk_by_sections(raw_text)
+                    if not chunks:
+                        chunks = [{"section": "experience", "text": raw_text[:3000]}]
+                    return {"raw_text": raw_text, "chunks": chunks, "metadata": metadata}
+                # Vision returned None — fall through to OCR below
+                logger.info("[parse_resume] Vision returned None — using OCR fallback")
+            except Exception as e:
+                logger.warning(f"[parse_resume] Vision path raised exception — using OCR fallback. Detail: {e}")
+
+    # ── Standard path: PDF / DOCX / TXT / image-OCR fallback ──────────────
     raw_text = extract_text(file_bytes, filename)
     chunks = chunk_by_sections(raw_text)
     metadata = extract_metadata(raw_text)
 
-    # If no sections detected, treat whole text as one experience chunk
+    # Stamp which parser was used
+    _ext_to_parser = {".pdf": "pdf", ".docx": "docx", ".txt": "txt"}
+    metadata["parsed_by"] = _ext_to_parser.get(ext, "ocr")
+
     if not chunks:
         chunks = [{"section": "experience", "text": raw_text[:3000]}]
 

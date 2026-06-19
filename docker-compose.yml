@@ -67,6 +67,8 @@ services:
       QDRANT_USE_MEMORY: "false"
       QDRANT_HOST: qdrant
       QDRANT_PORT: 6333
+      # Override Tesseract command in Docker so it doesn't try to use the Windows path from .env
+      TESSERACT_CMD: ""
     volumes:
       # Mount uploads folder so PDF files persist across container restarts
       - uploads_data:/app/uploads

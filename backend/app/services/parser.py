@@ -41,7 +41,9 @@ except ImportError:
 try:
     from app.core.config import settings
     if settings.TESSERACT_CMD and _TESSERACT_AVAILABLE:
-        pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
+        # Only set if the path actually exists (helps prevent Windows dev path from breaking Linux Docker containers)
+        if os.path.exists(settings.TESSERACT_CMD):
+            pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
 except Exception:
     pass  # settings not available at import time in some test contexts
 

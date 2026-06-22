@@ -1,6 +1,7 @@
 import os
 import uuid
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -200,6 +201,8 @@ def get_candidate(candidate_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "Candidate not found.")
 
     filename = os.path.basename(candidate.file_path) if candidate.file_path else None
+    # URL-encode the filename so spaces/special chars don't produce broken URLs
+    encoded_filename = quote(filename) if filename else None
 
     return {
         "id": str(candidate.id),
@@ -208,9 +211,9 @@ def get_candidate(candidate_id: str, db: Session = Depends(get_db)):
         "email": candidate.email,
         "raw_text": candidate.raw_text,
         "metadata_json": candidate.metadata_json,
-        "file_url": f"/uploads/{filename}" if filename else None,
+        "file_url": f"/uploads/{encoded_filename}" if encoded_filename else None,
         # Keep old key for backward compatibility
-        "pdf_url": f"/uploads/{filename}" if filename else None,
+        "pdf_url": f"/uploads/{encoded_filename}" if encoded_filename else None,
     }
 
 

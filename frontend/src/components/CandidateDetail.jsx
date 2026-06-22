@@ -310,7 +310,12 @@ export default function CandidateDetail({ candidate, jdText, onBack, onPrint }) 
                       : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
-                  Original PDF
+                  {(() => {
+                    const ext = (detailedCandidate?.file_url || detailedCandidate?.pdf_url || '').split('.').pop().toLowerCase()
+                    if (ext === 'docx' || ext === 'doc') return 'Original DOCX'
+                    if (['png','jpg','jpeg','webp'].includes(ext)) return 'Original Image'
+                    return 'Original PDF'
+                  })()}
                 </button>
                 {jdText && (
                   <button
@@ -357,18 +362,60 @@ export default function CandidateDetail({ candidate, jdText, onBack, onPrint }) 
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col bg-surface border border-outline-variant rounded overflow-hidden">
-                  {detailedCandidate?.pdf_url ? (
-                    <iframe
-                      src={`${detailedCandidate.pdf_url}#toolbar=0`}
-                      className="w-full h-full border-none"
-                      title="Original Resume PDF"
-                    />
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant">
-                      <span className="material-symbols-outlined text-[48px] text-outline">error</span>
-                      <p className="text-body-md mt-sm">PDF download URL not available.</p>
-                    </div>
-                  )}
+                  {(() => {
+                    const fileUrl = detailedCandidate?.file_url || detailedCandidate?.pdf_url
+                    if (!fileUrl) {
+                      return (
+                        <div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant">
+                          <span className="material-symbols-outlined text-[48px] text-outline">error</span>
+                          <p className="text-body-md mt-sm">File URL not available.</p>
+                        </div>
+                      )
+                    }
+                    const ext = fileUrl.split('.').pop().toLowerCase()
+                    // ── Images: render with <img> ──────────────────────────
+                    if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
+                      return (
+                        <div className="flex-1 flex flex-col items-center justify-center overflow-auto p-md">
+                          <img
+                            src={fileUrl}
+                            alt="Uploaded resume image"
+                            className="max-w-full max-h-full object-contain rounded shadow-sm"
+                          />
+                        </div>
+                      )
+                    }
+                    // ── DOCX: offer a download link (browsers cannot render inline) ──
+                    if (ext === 'docx' || ext === 'doc') {
+                      return (
+                        <div className="flex-1 flex flex-col items-center justify-center gap-md text-on-surface-variant p-lg">
+                          <span className="material-symbols-outlined text-[56px] text-primary">description</span>
+                          <p className="text-body-md text-center">
+                            Word documents cannot be previewed in the browser.
+                          </p>
+                          <a
+                            href={fileUrl}
+                            download
+                            className="flex items-center gap-xs px-md py-sm bg-primary text-on-primary rounded-lg text-label-md font-semibold hover:bg-primary/90 transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">download</span>
+                            Download Resume (.{ext})
+                          </a>
+                          <p className="text-body-sm text-outline text-center mt-xs">
+                            Use the <strong>Text Preview</strong> tab above to read the extracted resume content.
+                          </p>
+                        </div>
+                      )
+                    }
+                    // ── PDF: embed with iframe (default) ──────────────────
+                    return (
+                      <iframe
+                        src={`${fileUrl}#toolbar=0`}
+                        className="w-full h-full border-none"
+                        title="Original Resume"
+                      />
+                    )
+                  })()}
                 </div>
               )}
             </div>
